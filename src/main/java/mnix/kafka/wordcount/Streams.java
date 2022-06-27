@@ -16,6 +16,16 @@ import java.util.regex.Pattern;
 
 public class Streams {
     public static void main(String[] args) {
+        Topology topology = topology();
+        KafkaStreams streams = new KafkaStreams(topology, config());
+        streams.cleanUp();
+        streams.start();
+        System.out.println(topology.describe().toString());
+        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
+
+    }
+
+    public static Topology topology(){
         StreamsBuilder builder = new StreamsBuilder();
         KStream<String, String> stream = builder.stream(WordCountConfig.INPUT_TOPIC);
         stream.flatMapValues(value -> Arrays.asList(Pattern.compile("\\W+", Pattern.UNICODE_CHARACTER_CLASS).split(value.toLowerCase())))
@@ -24,14 +34,7 @@ public class Streams {
                 .count()
                 .toStream()
                 .to(WordCountConfig.OUTPUT_TOPIC, Produced.with(Serdes.String(), Serdes.Long()));
-
-        Topology topology = builder.build();
-        KafkaStreams streams = new KafkaStreams(topology, config());
-        streams.cleanUp();
-        streams.start();
-        System.out.println(topology.describe().toString());
-        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
-
+        return builder.build();
     }
 
     private static Properties config() {
